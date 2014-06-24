@@ -5,10 +5,12 @@
 		loaded:0,
 		numItems:10,
 		maxItems:10,
+		expires: 'expires=Wed, 31 Dec 2014 12:00:00 GMT',
 		init : function(){
 			var event = APP.Events,
 				that = this,
-				el = document.getElementsByTagName('html')[0];
+				el = document.getElementsByTagName('html')[0],
+				dom = APP.Dom;
 				
 			event.on('#search-btn', 'click', function(e){
 				that.searchHandler(e);
@@ -26,8 +28,86 @@
 				}
 			});
 			
+			event.on('#results', 'click', function(e){
+				if(dom.hasClass(e.target, 'link')){
+					return;
+				}
+				
+				event.preventDefault(e);
+				var target = e.target,
+					id = target.id;
+				if (dom.hasClass(target, 'details')){
+					if(!dom.get('#details-content-'+id)){
+						dom.addClass(target, 'show-details');
+						that.getDetails(target.id);
+					} else {
+						that.showHideDetails(target);
+					}
+				} else if(dom.hasClass(target, 'fav')){
+					id = id.replace('fav-','');
+					if(dom.hasClass(target, 'active')){
+						dom.removeClass(target,'active').addClass(target,'inactive');
+						that.removeFav(id);
+					} else {
+						dom.removeClass(target,'inactive').addClass(target,'active');
+						that.addFav(id);
+					}
+				}
+				
+			});
+			
+		},
+		addFav: function(id){
+			var c = this.getCookie('fav');
+			
+			if(c!==''){
+				c += ',';
+			}
+			
+			c += id;
+			this.setCookie('fav', c);
+			
 		},
 		
+		removeFav: function(id){
+			var c = this.getCookie('fav'),
+				l,i,n;
+			if (c !== ''){
+				c = c.split(',');
+				l = c.length;
+				for(i=0; i<l; i++){
+					if(c[i] === id){
+						 c[i] = '-1';
+					}
+				}
+				n = c.join();
+			}
+			
+			this.setCookie('fav', n);
+		},
+		
+		setCookie: function(name, val){
+			document.cookie = name+"="+ val + "; " +this.expires; 
+			return;
+		},
+		
+		getCookie: function(name){
+			var c = document.cookie.split(';'),
+				i,
+				len = c.length,
+				x;
+			
+			for(i=0; i<len; i++){
+				if (c[i].indexOf(name+'=') >= 0 ){
+					return (c[i].split("=")[1]);
+				}
+			}
+			
+	
+			
+			return '';
+			
+		},
 		searchHandler: function (e){
 			var event = APP.Events,
 				request = APP.Request,
@@ -37,6 +117,10 @@
 			
 			event.preventDefault(e);
 			q = APP.Dom.get('#search-text').value;
+			if (q.trim() === ''){
+				alert('Please enter a valid search term!!');
+				return;
+			}
 			
 			this.addSpiner('#results');
 			var url = 'https://graph.facebook.com/search?q=' + q + '&type=page&access_token=663863887040402|f6b8036c5a85631a6c232f3918b6014f';
@@ -102,26 +186,7 @@
 			
 			result.appendChild(resultContent);
 			
-			APP.Events.on(result, 'click', function(e){
-				if(APP.Dom.hasClass(e.target, 'link')){
-					return;
-				}
-				
-				APP.Events.preventDefault(e);
-				var target = e.target,
-					id = target.id;
-				if (dom.hasClass(target, 'details')){
-					if(!dom.get('#details-content-'+id)){
-						dom.addClass(target, 'show-details');
-						that.getDetails(target.id);
-					} else {
-						that.showHideDetails(target);
-					}
-					
-					
-					
-				}
-			});
+			
 		},
 		
 		showHideDetails: function(el){
@@ -129,11 +194,11 @@
 				detailsNode = APP.Dom.get("#details-content-"+ id);
 				
 			if(APP.Dom.hasClass(el, 'show-details')){
-				el.text = 'Show Details';
+				el.innerHTML = 'Show Details';
 				APP.Dom.removeClass(el, 'show-details').addClass(el,'hide-details');
 				APP.Dom.removeClass(detailsNode, 'show').addClass(detailsNode,'hide');
 			} else {
-				el.text = 'Hide Details';
+				el.innerHTML = 'Hide Details';
 				APP.Dom.removeClass(el, 'hide-details').addClass(el,'show-details');
 				APP.Dom.removeClass(detailsNode, 'hide').addClass(detailsNode,'show');
 			
@@ -143,15 +208,20 @@
 		createResultRow: function(data){
 			var	dom =  APP.Dom,
 				row,
-				cell = new Array(),i,len;
+				cell = new Array(),i,len,
+				c = this.getCookie('fav'),
+				classVal = 'inactive';
 				
 				cell[0] = dom.createElement({tag: 'img',src: 'https://graph.facebook.com/'+ data.id+'/picture?type=normal', className: 'pageImg left'});
 				
 				cell[1] = dom.createElement({tag: 'h3',text: data.name, className: 'pageName'});
 				
 				cell[2] = dom.createElement({tag: 'div',text: data.category, className: 'pageCat'});
-				
+				if(c.indexOf(data.id) >= 0){
+					classVal = 'active';
+				}
 				cell[3] = dom.createElement({tag: 'a',text: 'Show Details', className: 'details', id: data.id, href: '#'});
+				cell[4] = dom.createElement({tag: 'a', className: 'fav '+ classVal, id: 'fav-' + data.id, href: '#'});
 				
 				
 				row = dom.createElement({tag: 'div',  className: 'pageRow'});
