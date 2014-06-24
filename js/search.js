@@ -22,7 +22,6 @@
 			
 			event.on(document, 'scroll', function(e){
 				if (el.scrollHeight - el.scrollTop < 1000){ 
-				console.log('load more');
 					that.appendResults('loadmore');
 				}
 			});
@@ -44,6 +43,8 @@
 			
 			request.get('GET', url, function(data){
 				var data = JSON.parse(data);
+				that.loaded = 0;
+				that.numItems = that.maxItems;
 				
 				data.data.sort(function (a, b) {
 					if (a.name < b.name){
@@ -81,11 +82,12 @@
 			if(!resultContent){
 				resultContent = dom.createElement({tag: 'div', className: 'resultContent', id: 'resultContent'});
 			}
-			
 			if (length <= 0){
 				row = dom.createElement({tag: 'div', text: 'Sorry, we couldnt find any results for this search', className: 'error'});
 				resultContent.appendChild(row);
 			} else {
+				this.numItems = (this.numItems > length) ? length : this.numItems;
+				
 				for (i=this.loaded; i< this.numItems; i++) { 
 					row = this.createResultRow(response.data[i]);
 					resultContent.appendChild(row);
@@ -93,7 +95,6 @@
 				}
 				this.loaded = this.loaded + l;
 				this.numItems =  this.numItems + this.maxItems;
-				this.numItems = (this.numItems > length) ? length : this.numItems;
 				
 			}
 			
@@ -102,6 +103,10 @@
 			result.appendChild(resultContent);
 			
 			APP.Events.on(result, 'click', function(e){
+				if(APP.Dom.hasClass(e.target, 'link')){
+					return;
+				}
+				
 				APP.Events.preventDefault(e);
 				var target = e.target,
 					id = target.id;
@@ -140,7 +145,7 @@
 				row,
 				cell = new Array(),i,len;
 				
-				cell[0] = dom.createElement({tag: 'img',src: 'https://graph.facebook.com/'+ data.id +'/picture?type=normal', className: 'pageImg left'});
+				cell[0] = dom.createElement({tag: 'img',src: 'https://graph.facebook.com/'+ data.id+'/picture?type=normal', className: 'pageImg left'});
 				
 				cell[1] = dom.createElement({tag: 'h3',text: data.name, className: 'pageName'});
 				
@@ -190,7 +195,7 @@
 			
 			cells.push(dom.createElement({tag:'div', className: 'likes', text: details.likes + ' likes this'}));
 			
-			cells.push(dom.createElement({tag:'div', className: 'website', href: details.website, text: details.website}));
+			cells.push(dom.createElement({tag:'a', className: 'link', href: 'http://'+details.website, text: details.website}));
 			
 			cells.push(dom.createElement({tag:'a', className: 'link', href: details.link, text: 'Go to Page' }));
 			
